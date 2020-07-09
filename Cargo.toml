@@ -1,0 +1,18 @@
+[package]
+authors = ["Carl-Oskar Larsson <carloskar.larsson@gmail.com>"]
+edition = "2018"
+name = "wsl-gap"
+version = "1.0.0"
+build = "build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dirs = "3.0"
+log = "0.4.8"
+simplelog = "^0.7.6"
+structopt = {version = "0.3", default-features = false}
+winapi = { version = "0.3", features = [ "handleapi", "memoryapi", "winbase", "winuser", "winnt" ] }
+
+[build-dependencies]
+vergen = "3"
