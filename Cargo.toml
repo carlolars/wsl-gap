@@ -3,6 +3,7 @@ authors = ["Carl-Oskar Larsson <carloskar.larsson@gmail.com>"]
 edition = "2018"
 name = "wsl-gap"
 version = "1.0.0"
+license = "MIT"
 build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
