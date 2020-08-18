@@ -33,6 +33,8 @@ ARGS:
 * The `gpg-agent` is started if not already running.
 * The `GNUPGHOME` environment variable (if set) or `AppData\Roaming\gnupg` will be
   used as path to the `S.gpg-agent` socket on the `Windows` side.
+* By putting the socket files in the `/tmp` directory in `WSL` they will be deleted
+  when the `WSL` instance shuts down, which is especially useful for `WSL1`.
 
 ### Requirements
 * `GnuPG` installed and working in `Windows`, with the path to `gnupg\bin` added
@@ -44,7 +46,7 @@ ARGS:
 To only setup for `ssh`, just export `SSH_AUTH_SOCK` and use `socat` to relay between
 the socket and `wsl-gap.exe` with the `--ssh` argument.
 ```bash
-export SSH_AUTH_SOCK=/path/to/ssh.socket
+export SSH_AUTH_SOCK=/tmp/S.gpg-agent.ssh
 if [ ! -f "$SSH_AUTH_SOCK" ]; then
     (setsid socat UNIX-LISTEN:$SSH_AUTH_SOCK,fork EXEC:"/absolute/path/to/wsl-gap.exe --ssh" &) >/dev/null 2>&1
 fi
@@ -58,7 +60,7 @@ Then import the public keys and it should work.
 side, so using the users default home directory in `WSL` is a safe way.
 ```bash
 export GNUPGHOME=/home/user/.gnupg
-export GPG_AGENT_SOCK=$GNUPGHOME/S.gpg-agent
+export GPG_AGENT_SOCK=/tmp/S.gpg-agent
 if [ ! -f "$GPG_AGENT_SOCK" ]; then
     (setsid socat UNIX-LISTEN:$GPG_AGENT_SOCK,fork EXEC:"/absolute/path/to/wsl-gap.exe --gpg" &) >/dev/null 2>&1
 fi
@@ -75,8 +77,8 @@ start_wsl_gap() {
     # Absolute path to wsl-gap.exe
     WSL_GAP_BIN=$HOME/bin/wsl-gap.exe
     # Paths to socket files.
-    GPG_AGENT_SOCK_PATH=$GNUPGHOME/S.gpg-agent
-    SSH_AUTH_SOCK_PATH=$GNUPGHOME/S.gpg-agent.ssh
+    GPG_AGENT_SOCK_PATH=/tmp/S.gpg-agent
+    SSH_AUTH_SOCK_PATH=/tmp/S.gpg-agent.ssh
 
     # Make sure the exe exists and is executable.
     chmod +x $WSL_GAP_BIN
