@@ -35,6 +35,8 @@ ARGS:
   used as path to the `S.gpg-agent` socket on the `Windows` side.
 * By putting the socket files in the `/tmp` directory in `WSL` they will be deleted
   when the `WSL` instance shuts down, which is especially useful for `WSL1`.
+    * But `gpg` v2.1+ expects the `S.gpg-agent` socket to exist in `GNUPGHOME`, so it 
+      must be redirected to the correct path.
 
 ### Requirements
 * `GnuPG` installed and working in `Windows`, with the path to `gnupg\bin` added
@@ -53,14 +55,18 @@ fi
 ```
 
 ### GnuPG
-To use for `gpg`, configure gpg on the `WSL` side, export `GPG_AGENT_SOCK` and use 
-`socat` to relay between the socket and `wsl-gap.exe` with the `--gpg` argument.  
+To use for `gpg`, configure gpg on the `WSL` side, create the `S.gpg-agent` file
+to redirect to the actual socket, and use `socat` to relay between the socket and 
+`wsl-gap.exe` with the `--gpg` argument.  
 Then import the public keys and it should work.  
 **Note!** The `GNUPGHOME` cannot be the same on the `WSL` side as on the `Windows`
 side, so using the users default home directory in `WSL` is a safe way.
 ```bash
 export GNUPGHOME=/home/user/.gnupg
-export GPG_AGENT_SOCK=/tmp/S.gpg-agent
+GPG_AGENT_SOCK=/tmp/S.gpg-agent
+if [ ! -f "$GNUPGHOME/S.gpg-agent" ]; then
+    echo -e "%Assuan%\nsocket=$GPG_AGENT_SOCK" > $GNUPGHOME/S.gpg-agent
+fi
 if [ ! -f "$GPG_AGENT_SOCK" ]; then
     (setsid socat UNIX-LISTEN:$GPG_AGENT_SOCK,fork EXEC:"/absolute/path/to/wsl-gap.exe --gpg" &) >/dev/null 2>&1
 fi
@@ -96,14 +102,15 @@ start_wsl_gap() {
         [ $? -ne 0 ] && rm -rf $SSH_AUTH_SOCK_PATH
     fi
 
-    # Forward the GPG_AGENT_SOCK to stdin/stdout of the wsl-win gpg-agent proxy
+    # gpg expects S.gpg-agent socket to be in the GNUPGHOME folder, so it must be redirected
+    [ ! -f "$GNUPGHOME/S.gpg-agent" ] && echo -e "%Assuan%\nsocket=$GPG_AGENT_SOCK_PATH" > $GNUPGHOME/S.gpg-agent
+    # Forward the GPG_AGENT_SOCK to stdin/stdout of the gpg-agent proxy
     if [ ! -f "$GPG_AGENT_SOCK_PATH" ]; then
         # Use setsid to force new session to keep it running when current terminal closes
         (setsid socat UNIX-LISTEN:$GPG_AGENT_SOCK_PATH,fork EXEC:"$WSL_GAP_BIN --gpg" &) >/dev/null 2>&1
     fi
-    export GPG_AGENT_SOCK=$GPG_AGENT_SOCK_PATH
 
-    # Forward the SSH_AUTH_SOCK to stdin/stdout of the wsl-win gpg-agent proxy
+    # Forward the SSH_AUTH_SOCK to stdin/stdout of the gpg-agent proxy
     if [ ! -f "$SSH_AUTH_SOCK_PATH" ]; then
         # Use setsid to force new session to keep it running when current terminal closes
         (setsid socat UNIX-LISTEN:$SSH_AUTH_SOCK_PATH,fork EXEC:"$WSL_GAP_BIN --ssh" &) >/dev/null 2>&1
