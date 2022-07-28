@@ -23,6 +23,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
       - name: Run cargo clippy
         run: cargo clippy -- -Dwarnings
 
