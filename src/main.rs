@@ -5,7 +5,7 @@ use std::fs::OpenOptions;
 use std::io;
 use std::io::{BufRead, Error, ErrorKind, Read, Write};
 use std::net::{Shutdown, TcpStream};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::thread;
 use structopt::StructOpt;
@@ -16,7 +16,7 @@ extern crate dirs;
 extern crate simplelog;
 extern crate winapi;
 
-type HWND = winapi::shared::windef::HWND;
+type Hwnd = winapi::shared::windef::HWND;
 
 /// The length of a nonce in bytes.
 const NONCE_LENGTH: usize = 16;
@@ -157,7 +157,7 @@ fn gnupghome_path() -> Result<PathBuf, Error> {
             None => {
                 return Err(Error::new(
                     ErrorKind::NotFound,
-                    format!("GNUPGHOME not set and RoamingAppData folder not found."),
+                    "GNUPGHOME not set and RoamingAppData folder not found.".to_string(),
                 ));
             }
         },
@@ -166,7 +166,7 @@ fn gnupghome_path() -> Result<PathBuf, Error> {
     Ok(path)
 }
 
-fn find_window(title: &str) -> Option<HWND> {
+fn find_window(title: &str) -> Option<Hwnd> {
     use std::ffi::CString;
     use winapi::um::winuser::FindWindowA;
 
@@ -182,7 +182,7 @@ fn find_window(title: &str) -> Option<HWND> {
     }
 }
 
-fn find_gpg_agent(_gnupghome: &PathBuf) -> Result<HWND, Error> {
+fn find_gpg_agent(_gnupghome: &Path) -> Result<Hwnd, Error> {
     info!("find gpg-agent");
     match find_window("Pageant") {
         Some(hwnd) => Ok(hwnd),
@@ -279,7 +279,7 @@ fn parse_socket_data(data: Vec<u8>) -> Result<SocketInfo, Error> {
                 reading_port = false;
             } else {
                 // The port number is a string of ASCII characters that should be 0-9
-                if byte < b'0' || byte > b'9' {
+                if !(b'0'..=b'9').contains(&byte) {
                     return Err(Error::new(
                         ErrorKind::InvalidData,
                         "Failed to parse port number in socket file: Unexpected character in port number string",
@@ -326,7 +326,7 @@ fn parse_socket_data(data: Vec<u8>) -> Result<SocketInfo, Error> {
     Ok(socket_info)
 }
 
-fn ssh_proxy(pageant_hwnd: HWND) -> Result<(), Error> {
+fn ssh_proxy(pageant_hwnd: Hwnd) -> Result<(), Error> {
     info!("start ssh-proxy");
 
     let stdin = io::stdin();
@@ -359,7 +359,7 @@ fn ssh_proxy(pageant_hwnd: HWND) -> Result<(), Error> {
 const AGENT_COPYDATA_ID: usize = 0x804e50ba;
 const AGENT_MAX_MSGLEN: u32 = 8192;
 
-fn agent_query(request: &[u8], hwnd: HWND) -> Result<&[u8], Error> {
+fn agent_query(request: &[u8], hwnd: Hwnd) -> Result<&[u8], Error> {
     info!("agent_query");
 
     use std::ffi::CString;
