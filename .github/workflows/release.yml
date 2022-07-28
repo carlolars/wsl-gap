@@ -1,0 +1,88 @@
+name: Publish draft release
+
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-version:
+    name: Check that version and tag match
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - shell: bash
+        run: |
+          version=$(\
+            grep --extended-regexp '^version\s?=.*"$' Cargo.toml \
+            | sed 's/version\s*=\s*"\([0-9\.]*\)"/\1/'
+          )
+
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Version in Cargo.toml doesn't match tag! (v$version != $GITHUB_REF_NAME)"
+            exit 1
+          fi
+
+  build:
+    name: Build release
+    runs-on: windows-latest
+    needs: check-version
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Extract release notes
+        uses: ffurrer2/extract-release-notes@v1
+        with:
+          release_notes_file: RELEASE_NOTES.md
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifact
+          path: |
+            target/release/wsl-gap.exe
+            RELEASE_NOTES.md
+
+  publish:
+    name: Publish draft release
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifact
+
+      - name: Install minisign
+        run: |
+          wget https://github.com/jedisct1/minisign/releases/download/0.10/minisign-0.10-linux.tar.gz
+          tar -xvf minisign-0.10-linux.tar.gz
+
+      - name: Sign release
+        run: |
+          echo "${{ secrets.MINISIGN_KEY }}" > minisign.key
+          echo "${{ secrets.MINISIGN_PASSWORD }}" | \
+            minisign-0.10-linux/x86_64/minisign \
+              -s minisign.key \
+              -x wsl-gap.exe.minisig \
+              -Sm target/release/wsl-gap.exe
+
+          cat wsl-gap.exe.minisig
+
+      - name: Publish
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          body_path: RELEASE_NOTES.md
+          files: |
+            target/release/wsl-gap.exe
+            wsl-gap.exe.minisig

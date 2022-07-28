@@ -12,6 +12,12 @@ a smartcard, which are not directly accessible inside WSL.
 
 ![Connection Diagram](./flowchart.png)
 
+Releases can be verified using:
+
+```sh
+minisign -Vm wsl-gap.exe -P RWQnxc7i4M9iJ5oE7m4ry4dchugn3fgsHHdbUHcJOMvf/KSO+t7fxQ/v
+```
+
 ## Usage
 ```
 $ wsl-gap.exe -h
